@@ -1,0 +1,1 @@
+# aws-encrypted-rds-cfn-template
