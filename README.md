@@ -2,7 +2,7 @@
 
 ## Description:
 
-This solution creates an encrypted [AWS RDS](https://aws.amazon.com/rds/) MySQL database leveraging a [AWS KMS](https://aws.amazon.com/kms/) key into a VPC private subnet zone.
+This solution creates an encrypted [AWS RDS](https://aws.amazon.com/rds/) MySQL database leveraging a [AWS KMS](https://aws.amazon.com/kms/) key into a [VPC](https://aws.amazon.com/vpc/) private subnet zone.
 
 The AWS CloudFormation template creates a AWS KMS encryption key for RDS, and an encrypted RDS MySQL instance leveraging the KMS key as well as a VPC with public and private subnets and an EC2 Bastion host for access to the RDS instance.
 
@@ -34,8 +34,8 @@ you must have one created in your region then **Next**
 
 ## Test:
 
-* SSH with your ec2 keypair into the bastion host
+* SSH with your EC2 keypair you selected when executing the CloudFormation template into the EC2 bastion host
 * sudo yum install mysql
-* At the command prompt: mysql -u dbuser -p -h (put your RDS endpoint here available in the AWS console)
+* At the command prompt: mysql -u dbuser -p -h (put your RDS endpoint here available in the AWS RDS console)
 * When prompted for password use: Passw0rd!
 * You should now be connected to your RDS MySQL instance
