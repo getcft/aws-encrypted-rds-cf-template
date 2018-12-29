@@ -1,4 +1,4 @@
-# aws-encrypted-rds-cfn-template
+# aws-encrypted-rds-cf-template
 
 ## Description:
 
@@ -25,7 +25,7 @@ _***note AWS RDS, KMS, and EC2 will incur costs**_
 AWS Management Console
 
 * Login to AWS Management Console
-* Launch in CloudFormation encrypted-rds-cfn-template.yml (from the repo you cloned)
+* Launch in CloudFormation encrypted-rds-cf-template.yml (from the repo you cloned)
 
 CloudFormation Fields
 
