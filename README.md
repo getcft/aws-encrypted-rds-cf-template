@@ -45,5 +45,6 @@ you must have one created in your region then **Next**
 ## Other Things:
 
 * Obviously change the password
+* For RDS password management you may want to look into [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/)
 * The private subnets that form the RDS Subnet Group are private and have no gateway to the internet
 * If you need your private subnets to have internet access for updates etc create a AWS NAT Gateway for outbound
