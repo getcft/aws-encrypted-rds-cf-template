@@ -1,0 +1,472 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: VPC with Encrypted RDS Template
+
+Parameters:
+
+    SshKeyName:
+        Description: 'Name of the key to use when creating resources.'
+        Type: 'AWS::EC2::KeyPair::KeyName'
+        Default: 'choose-key'
+
+Mappings:
+    RegionToAmazonAMI:
+        us-east-1:
+            HVM64: ami-0b33d91d
+        us-east-2:
+            HVM64: ami-c55673a0
+        us-west-1:
+            HVM64: ami-165a0876
+        us-west-2:
+            HVM64: ami-6df1e514
+    NetworkToSubnet:
+        "10.0.0.0":
+            PubSubnetZoneA: "10.0.10.0/24"
+            PrivSubnetZoneA: "10.0.20.0/24"
+            PubSubnetZoneB: "10.0.30.0/24"
+            PrivSubnetZoneB: "10.0.40.0/24"
+
+Resources:
+
+    VPC:
+        Type: 'AWS::EC2::VPC'
+        Properties:
+            CidrBlock:
+                'Fn::Join': [ '/', [ '10.0.0.0', '16' ] ]
+            EnableDnsSupport: true
+            EnableDnsHostnames: true
+            InstanceTenancy: 'default'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      Ref: 'AWS::StackName'
+
+    # Internet accessable subnet in the first availability zone
+    PubSubnetZoneA:
+        Type: 'AWS::EC2::Subnet'
+        Properties:
+            AvailabilityZone:
+                Fn::Select:
+                - '0'
+                - Fn::GetAZs:
+                    Ref: 'AWS::Region'
+            CidrBlock:
+                Fn::FindInMap:
+                - NetworkToSubnet
+                - '10.0.0.0'
+                - PubSubnetZoneA
+            MapPublicIpOnLaunch: 'True'
+            VpcId:
+                Ref: 'VPC'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'Public', 'Zone A', !Ref 'AWS::StackName' ] ]
+
+    # Non-internet accessable subnet in the first availability zone
+    PrivSubnetZoneA:
+        Type: 'AWS::EC2::Subnet'
+        Properties:
+            AvailabilityZone:
+                Fn::Select:
+                - '0'
+                - Fn::GetAZs:
+                    Ref: 'AWS::Region'
+            CidrBlock:
+                Fn::FindInMap:
+                - NetworkToSubnet
+                - '10.0.0.0'
+                - PrivSubnetZoneA
+            MapPublicIpOnLaunch: 'False'
+            VpcId:
+                Ref: 'VPC'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'Private', 'Zone A', !Ref 'AWS::StackName' ] ]
+
+    # Internet accessable subnet in the second availability zone
+    PubSubnetZoneB:
+        Type: 'AWS::EC2::Subnet'
+        Properties:
+            AvailabilityZone:
+                Fn::Select:
+                - '1'
+                - Fn::GetAZs:
+                    Ref: 'AWS::Region'
+            CidrBlock:
+                Fn::FindInMap:
+                - NetworkToSubnet
+                - '10.0.0.0'
+                - PubSubnetZoneB
+            MapPublicIpOnLaunch: 'True'
+            VpcId:
+                Ref: 'VPC'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'Public', 'Zone B', !Ref 'AWS::StackName' ] ]
+
+    # Non-internet accessable subnet in the second availability zone
+    PrivSubnetZoneB:
+        Type: 'AWS::EC2::Subnet'
+        Properties:
+            AvailabilityZone:
+                Fn::Select:
+                - '1'
+                - Fn::GetAZs:
+                    Ref: 'AWS::Region'
+            CidrBlock:
+                Fn::FindInMap:
+                - NetworkToSubnet
+                - '10.0.0.0'
+                - PrivSubnetZoneB
+            MapPublicIpOnLaunch: 'False'
+            VpcId:
+                Ref: 'VPC'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'Private', 'Zone B', !Ref 'AWS::StackName' ] ]
+
+    # Gateway to the internet
+    InternetGateway:
+        Type: 'AWS::EC2::InternetGateway'
+        Properties:
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      Ref: 'AWS::StackName'
+
+    # Associate the gateway to the VPC
+    GatewayAttachment:
+        Type: AWS::EC2::VPCGatewayAttachment
+        Properties:
+            InternetGatewayId:
+                Ref: 'InternetGateway'
+            VpcId:
+                Ref: 'VPC'
+
+    # Routing table for the public subnet in availability zone A
+    RouteTablePubZoneA:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId:
+                Ref: 'VPC'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'Public', 'Zone A', !Ref 'AWS::StackName' ] ]
+
+    # Routing table for the public subnet in availability zone B
+    RouteTablePubZoneB:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId:
+                Ref: 'VPC'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'Public', 'Zone B', !Ref 'AWS::StackName' ] ]
+
+    # Route traffic through the internet gateway
+    RoutePubZoneA:
+        DependsOn:
+            - InternetGateway
+        Type: AWS::EC2::Route
+        Properties:
+            DestinationCidrBlock: '0.0.0.0/0'
+            GatewayId:
+                Ref: 'InternetGateway'
+            RouteTableId:
+                Ref: 'RouteTablePubZoneA'
+
+    # Route traffic through the internet gateway
+    RoutePubZoneB:
+        DependsOn:
+            - InternetGateway
+        Type: AWS::EC2::Route
+        Properties:
+            DestinationCidrBlock: 0.0.0.0/0
+            GatewayId:
+                Ref: 'InternetGateway'
+            RouteTableId:
+                Ref: 'RouteTablePubZoneB'
+
+    # Associate public subnet to its routing table
+    RouteAssociationPubSubnetZoneA:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId:
+                Ref: 'PubSubnetZoneA'
+            RouteTableId:
+                Ref: 'RouteTablePubZoneA'
+
+    # Associate public subnet to its routing table
+    RouteAssociationPubSubnetZoneB:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId:
+                Ref: 'PubSubnetZoneB'
+            RouteTableId:
+                Ref: 'RouteTablePubZoneB'
+
+    # EIP for the zone A NAT gateway
+    ElasticIpZoneA:
+        DependsOn:
+            - GatewayAttachment
+        Type: AWS::EC2::EIP
+        Properties:
+            Domain: vpc
+
+    # EIP for the zone B NAT gateway
+    ElasticIpZoneB:
+        DependsOn:
+            - GatewayAttachment
+        Type: AWS::EC2::EIP
+        Properties:
+            Domain: vpc
+
+    # Routing table for the private subnet in availability zone A
+    RouteTablePrivZoneA:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId:
+                Ref: 'VPC'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'Private', 'Zone A', !Ref 'AWS::StackName' ] ]
+
+    # Routing table for the private subnet in availability zone B
+    RouteTablePrivZoneB:
+        Type: AWS::EC2::RouteTable
+        Properties:
+            VpcId:
+                Ref: 'VPC'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'Private', 'Zone B', !Ref 'AWS::StackName' ] ]
+
+    # Associate the private subnet with its routing table
+    RouteAssociationPrivSubnetZoneA:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId:
+                Ref: 'PrivSubnetZoneA'
+            RouteTableId:
+                Ref: 'RouteTablePrivZoneA'
+
+    # Associate the private subnet with its routing table
+    RouteAssociationPrivSubnetZoneB:
+        Type: AWS::EC2::SubnetRouteTableAssociation
+        Properties:
+            SubnetId:
+                Ref: 'PrivSubnetZoneB'
+            RouteTableId:
+                Ref: 'RouteTablePrivZoneB'
+
+    # Locked down the bastion servers so only inbound SSH is allowed
+    BastionSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: 'SSH traffic only'
+            VpcId:
+                Ref: 'VPC'
+            SecurityGroupIngress:
+                - IpProtocol: tcp
+                  FromPort: 22
+                  ToPort: 22
+                  CidrIp: 0.0.0.0/0
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'Bastion', !Ref 'AWS::StackName' ] ]
+
+    # Limit inbound access from the bastion boxes only
+    FromBastionSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupDescription: 'Access from the bastion boxes only'
+            VpcId:
+                Ref: 'VPC'
+            SecurityGroupIngress:
+                - IpProtocol: '-1'
+                  FromPort: 0
+                  ToPort: 65535
+                  SourceSecurityGroupId:
+                      Ref: 'BastionSecurityGroup'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'From Bastion Only', !Ref 'AWS::StackName' ] ]
+
+    RDSSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupName: RDSSecurityGroup
+        VpcId: !Ref VPC
+        GroupDescription: Enable MySql access via user defined port
+        SecurityGroupIngress:
+          - CidrIp: 10.0.0.0/16
+            FromPort: 3306
+            IpProtocol: tcp
+            ToPort: 3306
+
+    # Role needed by the EC2 instances for tagging their EBS volumes
+    AmazonEC2FullAccessRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - ec2.amazonaws.com
+            Action:
+                  - sts:AssumeRole
+        ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMFullAccess
+        - arn:aws:iam::aws:policy/AWSHealthFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
+        Policies:
+          - PolicyName: "root"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: "Allow"
+                  Action:
+                  -  cloudformation:SignalResource
+                  -  cloudformation:DescribeStackResource
+                  -  resource-groups:*
+                  Resource: "*"
+        RoleName: !Join [ '-', [ !Ref 'AWS::StackName', 'AmazonEC2FullAccessRole' ] ]
+
+    # EC2 instances will run using this profile
+    EC2FullAccessInstanceProfile:
+        Type: "AWS::IAM::InstanceProfile"
+        Properties:
+            Path: "/"
+            Roles:
+            -
+                Ref: "AmazonEC2FullAccessRole"
+
+    # auto scaling launch configuration for the Bastion server
+    BastionLaunchConfiguration:
+        Type: AWS::AutoScaling::LaunchConfiguration
+        Properties:
+            EbsOptimized: false
+            IamInstanceProfile:
+                Ref: 'EC2FullAccessInstanceProfile'
+            ImageId:
+                Fn::FindInMap:
+                  - RegionToAmazonAMI
+                  - Ref: 'AWS::Region'
+                  - HVM64
+            InstanceMonitoring: false
+            InstanceType: t2.nano
+            KeyName:
+                Ref: 'SshKeyName'
+            SecurityGroups:
+                - !Ref 'BastionSecurityGroup'
+            UserData:
+                Fn::Base64: !Sub |
+                    #!/bin/bash -xe
+                    AWS_INSTANCE_ID=$( curl http://169.254.169.254/latest/meta-data/instance-id )
+                    echo "AWS_INSTANCE_ID=$AWS_INSTANCE_ID"
+                    ROOT_DISK_ID=$( aws ec2 describe-volumes --region ${AWS::Region} --filter "Name=attachment.instance-id, Values=$AWS_INSTANCE_ID" --query "Volumes[].VolumeId" --out text )
+                    echo "ROOT_DISK_ID=$ROOT_DISK_ID"
+                    aws ec2 create-tags  --region ${AWS::Region} --resources $ROOT_DISK_ID'
+
+    # auto scaling group for the Bastion server
+    BastionAutoScalingGroup:
+        DependsOn: 'InternetGateway'
+        Type: AWS::AutoScaling::AutoScalingGroup
+        Properties:
+            Cooldown: '120'
+            DesiredCapacity: '1'
+            HealthCheckType: 'EC2'
+            LaunchConfigurationName:
+                Ref: 'BastionLaunchConfiguration'
+            MaxSize: '2'
+            MinSize: '1'
+            Tags:
+                - Key: 'Name'
+                  Value:
+                      'Fn::Join': [ ':', [ 'Bastion', !Ref 'AWS::StackName' ] ]
+                  PropagateAtLaunch: true
+
+            VPCZoneIdentifier: [ !Ref 'PubSubnetZoneA', !Ref 'PubSubnetZoneB' ]
+
+    # RDS Subnet Group
+    RDSDBSubnetGroup:
+      Type: "AWS::RDS::DBSubnetGroup"
+      Properties:
+        DBSubnetGroupDescription: "description"
+        DBSubnetGroupName: "RDS_DB_PrivSubnet"
+        SubnetIds:
+          - !Ref PrivSubnetZoneA
+          - !Ref PrivSubnetZoneB
+
+    # KMS RDS encryption key
+    rdsKey:
+      Type: AWS::KMS::Key
+      Properties:
+        KeyPolicy:
+          Version: 2012-10-17
+          Id: key-rds
+          Statement:
+            - Sid: Enable IAM User Permissions
+              Effect: Allow
+              Principal:
+                AWS: !Join
+                  - ''
+                  - - 'arn:aws:iam::'
+                    - !Ref 'AWS::AccountId'
+                    - ':root'
+              Action: 'kms:*'
+              Resource: '*'
+    rdsAlias:
+      Type: AWS::KMS::Alias
+      Properties:
+        AliasName: alias/rds
+        TargetKeyId:
+          Ref: rdsKey
+
+    MySQLDatabase:
+      Type: 'AWS::RDS::DBInstance'
+      Properties:
+        Engine: MySQL
+        DBName: "RDS"
+        StorageEncrypted: true
+        KmsKeyId: !Ref rdsKey
+        MasterUsername: 'dbuser'
+        MasterUserPassword: 'Passw0rd!'
+        DBInstanceClass: db.t2.small
+        AllocatedStorage: 5
+        DBSubnetGroupName: !Ref RDSDBSubnetGroup
+        VPCSecurityGroups:
+          - Ref: RDSSecurityGroup
+
+Outputs:
+    VPC:
+        Description: 'Virtual Private Cloud'
+        Value:
+          Ref: 'VPC'
+    SshKeyName:
+        Description: 'SSH Key'
+        Value:
+          Ref: 'SshKeyName'
+    RDSDBSubnetGroup:
+        Description: 'RDS Private Subnet Group'
+        Value:
+          Ref: 'RDSDBSubnetGroup'
+    RDSSecurityGroup:
+      Description: 'RDS Security Group'
+      Value:
+        Ref: 'RDSSecurityGroup'
+    rdsAlias:
+      Description: 'RDS KMS Encryption Key Alias'
+      Value:
+        Ref: 'rdsAlias'
