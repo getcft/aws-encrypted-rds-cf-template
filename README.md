@@ -6,6 +6,8 @@ This solution creates an encrypted [AWS RDS](https://aws.amazon.com/rds/) MySQL 
 
 The AWS CloudFormation template creates a AWS KMS encryption key for RDS, and an encrypted RDS MySQL instance leveraging the KMS key as well as a VPC with public and private subnets and an EC2 Bastion host for access to the RDS instance.
 
+AWS RDS encrypted DB instances use the industry standard AES-256 encryption algorithm to encrypt your data on the server that hosts your Amazon RDS DB instances. Once your data is encrypted, Amazon RDS handles authentication of access and decryption of your data transparently with a minimal impact on performance. You don't need to modify your database client applications to use encryption.
+
 _***note AWS RDS, KMS, and EC2 will incur costs**_
 
 * [RDS MySQL pricing](https://aws.amazon.com/rds/mysql/pricing/) resource used in example: db.t2.small
@@ -39,3 +41,9 @@ you must have one created in your region then **Next**
 * At the command prompt: mysql -u dbuser -p -h (put your RDS endpoint here available in the AWS RDS console)
 * When prompted for password use: Passw0rd!
 * You should now be connected to your RDS MySQL instance
+
+## Other Things:
+
+* Obviously change the password
+* The private subnets that form the RDS Subnet Group are private and have no gateway to the internet
+* If you need your private subnets to have internet access for updates etc create a AWS NAT Gateway for outbound
