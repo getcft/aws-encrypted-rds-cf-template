@@ -210,22 +210,6 @@ Resources:
             RouteTableId:
                 Ref: 'RouteTablePubZoneB'
 
-    # EIP for the zone A NAT gateway
-    ElasticIpZoneA:
-        DependsOn:
-            - GatewayAttachment
-        Type: AWS::EC2::EIP
-        Properties:
-            Domain: vpc
-
-    # EIP for the zone B NAT gateway
-    ElasticIpZoneB:
-        DependsOn:
-            - GatewayAttachment
-        Type: AWS::EC2::EIP
-        Properties:
-            Domain: vpc
-
     # Routing table for the private subnet in availability zone A
     RouteTablePrivZoneA:
         Type: AWS::EC2::RouteTable
@@ -301,6 +285,7 @@ Resources:
                   Value:
                       'Fn::Join': [ ':', [ 'From Bastion Only', !Ref 'AWS::StackName' ] ]
 
+    # RDS security group inbound and outbound access
     RDSSecurityGroup:
       Type: AWS::EC2::SecurityGroup
       Properties:
@@ -434,6 +419,7 @@ Resources:
         TargetKeyId:
           Ref: rdsKey
 
+    # RDS MySQL database configuration
     MySQLDatabase:
       Type: 'AWS::RDS::DBInstance'
       Properties:
