@@ -445,6 +445,8 @@ Resources:
         MasterUserPassword: 'Passw0rd!'
         DBInstanceClass: db.t2.small
         AllocatedStorage: 5
+	# To add a specific storage type add "StorageType: gp2, io1, or standard" for io1 you must also declare "Iops: with an integer equal or greater then 1000"
+	# gp2 is General Purpose (SSD), io1 is provisioned IOPS, and standard is magnetic
         DBSubnetGroupName: !Ref RDSDBSubnetGroup
         VPCSecurityGroups:
           - Ref: RDSSecurityGroup
