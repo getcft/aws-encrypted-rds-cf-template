@@ -15,23 +15,8 @@
 AWSTemplateFormatVersion: 2010-09-09
 Description: VPC with Encrypted RDS Template
 
-Parameters:
-
-    SshKeyName:
-        Description: 'Name of the key to use when creating resources.'
-        Type: 'AWS::EC2::KeyPair::KeyName'
-        Default: 'choose-key'
-
 Mappings:
-    RegionToAmazonAMI:
-        us-east-1:
-            HVM64: ami-0b33d91d
-        us-east-2:
-            HVM64: ami-c55673a0
-        us-west-1:
-            HVM64: ami-165a0876
-        us-west-2:
-            HVM64: ami-6df1e514
+
     NetworkToSubnet:
         "10.0.0.0":
             PubSubnetZoneA: "10.0.10.0/24"
@@ -264,41 +249,6 @@ Resources:
             RouteTableId:
                 Ref: 'RouteTablePrivZoneB'
 
-    # Locked down the bastion servers so only inbound SSH is allowed
-    BastionSecurityGroup:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: 'SSH traffic only'
-            VpcId:
-                Ref: 'VPC'
-            SecurityGroupIngress:
-                - IpProtocol: tcp
-                  FromPort: 22
-                  ToPort: 22
-                  CidrIp: 0.0.0.0/0
-            Tags:
-                - Key: 'Name'
-                  Value:
-                      'Fn::Join': [ ':', [ 'Bastion', !Ref 'AWS::StackName' ] ]
-
-    # Limit inbound access from the bastion boxes only
-    FromBastionSecurityGroup:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupDescription: 'Access from the bastion boxes only'
-            VpcId:
-                Ref: 'VPC'
-            SecurityGroupIngress:
-                - IpProtocol: '-1'
-                  FromPort: 0
-                  ToPort: 65535
-                  SourceSecurityGroupId:
-                      Ref: 'BastionSecurityGroup'
-            Tags:
-                - Key: 'Name'
-                  Value:
-                      'Fn::Join': [ ':', [ 'From Bastion Only', !Ref 'AWS::StackName' ] ]
-
     # RDS security group inbound and outbound access
     RDSSecurityGroup:
       Type: AWS::EC2::SecurityGroup
@@ -311,92 +261,6 @@ Resources:
             FromPort: 3306
             IpProtocol: tcp
             ToPort: 3306
-
-    # Role needed by the EC2 instances for tagging their EBS volumes
-    AmazonEC2FullAccessRole:
-      Type: AWS::IAM::Role
-      Properties:
-        AssumeRolePolicyDocument:
-          Version: '2012-10-17'
-          Statement:
-          - Effect: Allow
-            Principal:
-              Service:
-              - ec2.amazonaws.com
-            Action:
-                  - sts:AssumeRole
-        ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AmazonSSMFullAccess
-        - arn:aws:iam::aws:policy/AWSHealthFullAccess
-        - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
-        Policies:
-          - PolicyName: "root"
-            PolicyDocument:
-              Version: "2012-10-17"
-              Statement:
-                - Effect: "Allow"
-                  Action:
-                  -  cloudformation:SignalResource
-                  -  cloudformation:DescribeStackResource
-                  -  resource-groups:*
-                  Resource: "*"
-        RoleName: !Join [ '-', [ !Ref 'AWS::StackName', 'AmazonEC2FullAccessRole' ] ]
-
-    # EC2 instances will run using this profile
-    EC2FullAccessInstanceProfile:
-        Type: "AWS::IAM::InstanceProfile"
-        Properties:
-            Path: "/"
-            Roles:
-            -
-                Ref: "AmazonEC2FullAccessRole"
-
-    # auto scaling launch configuration for the Bastion server
-    BastionLaunchConfiguration:
-        Type: AWS::AutoScaling::LaunchConfiguration
-        Properties:
-            EbsOptimized: false
-            IamInstanceProfile:
-                Ref: 'EC2FullAccessInstanceProfile'
-            ImageId:
-                Fn::FindInMap:
-                  - RegionToAmazonAMI
-                  - Ref: 'AWS::Region'
-                  - HVM64
-            InstanceMonitoring: false
-            InstanceType: t2.nano
-            KeyName:
-                Ref: 'SshKeyName'
-            SecurityGroups:
-                - !Ref 'BastionSecurityGroup'
-            UserData:
-                Fn::Base64: !Sub |
-                    #!/bin/bash -xe
-                    AWS_INSTANCE_ID=$( curl http://169.254.169.254/latest/meta-data/instance-id )
-                    echo "AWS_INSTANCE_ID=$AWS_INSTANCE_ID"
-                    ROOT_DISK_ID=$( aws ec2 describe-volumes --region ${AWS::Region} --filter "Name=attachment.instance-id, Values=$AWS_INSTANCE_ID" --query "Volumes[].VolumeId" --out text )
-                    echo "ROOT_DISK_ID=$ROOT_DISK_ID"
-                    aws ec2 create-tags  --region ${AWS::Region} --resources $ROOT_DISK_ID'
-
-    # auto scaling group for the Bastion server
-    BastionAutoScalingGroup:
-        DependsOn: 'InternetGateway'
-        Type: AWS::AutoScaling::AutoScalingGroup
-        Properties:
-            Cooldown: '120'
-            DesiredCapacity: '1'
-            HealthCheckType: 'EC2'
-            LaunchConfigurationName:
-                Ref: 'BastionLaunchConfiguration'
-            MaxSize: '2'
-            MinSize: '1'
-            Tags:
-                - Key: 'Name'
-                  Value:
-                      'Fn::Join': [ ':', [ 'Bastion', !Ref 'AWS::StackName' ] ]
-                  PropagateAtLaunch: true
-
-            VPCZoneIdentifier: [ !Ref 'PubSubnetZoneA', !Ref 'PubSubnetZoneB' ]
 
     # RDS Subnet Group
     RDSDBSubnetGroup:
@@ -456,10 +320,6 @@ Outputs:
         Description: 'Virtual Private Cloud'
         Value:
           Ref: 'VPC'
-    SshKeyName:
-        Description: 'SSH Key'
-        Value:
-          Ref: 'SshKeyName'
     RDSDBSubnetGroup:
         Description: 'RDS Private Subnet Group'
         Value:
