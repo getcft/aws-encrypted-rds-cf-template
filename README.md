@@ -1,4 +1,5 @@
 # aws-encrypted-rds-cf-template
+[![Build Status](https://travis-ci.org/getcft/aws-encrypted-rds-cf-template.svg?branch=master)](https://travis-ci.org/getcft/aws-encrypted-rds-cf-template)
 
 ## Description:
 
