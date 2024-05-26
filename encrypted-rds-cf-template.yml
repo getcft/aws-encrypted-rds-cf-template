@@ -1,4 +1,4 @@
-# Copyright [2019] [Phil Chen]
+# Copyright [2024] [Phil Chen]
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,12 @@
 
 AWSTemplateFormatVersion: 2010-09-09
 Description: VPC with Encrypted RDS Template
+
+Parameters:
+  RdsMasterPassword:
+    Type: String
+    NoEcho: true
+    Description: Master Password for RDS
 
 Mappings:
 
@@ -169,8 +175,6 @@ Resources:
 
     # Route traffic through the internet gateway
     RoutePubZoneA:
-        DependsOn:
-            - InternetGateway
         Type: AWS::EC2::Route
         Properties:
             DestinationCidrBlock: '0.0.0.0/0'
@@ -181,8 +185,6 @@ Resources:
 
     # Route traffic through the internet gateway
     RoutePubZoneB:
-        DependsOn:
-            - InternetGateway
         Type: AWS::EC2::Route
         Properties:
             DestinationCidrBlock: 0.0.0.0/0
@@ -306,8 +308,8 @@ Resources:
         StorageEncrypted: true
         KmsKeyId: !Ref rdsKey
         MasterUsername: 'dbuser'
-        MasterUserPassword: 'Passw0rd!'
-        DBInstanceClass: db.t2.small
+        MasterUserPassword: !Ref RdsMasterPassword
+        DBInstanceClass: db.t3.micro
         AllocatedStorage: 5
 # To add a specific storage type add "StorageType: gp2, io1, or standard" for io1 you must also declare "Iops: with an integer equal or greater then 1000"
 # gp2 is General Purpose (SSD), io1 is provisioned IOPS, and standard is magnetic

@@ -1,5 +1,5 @@
 # aws-encrypted-rds-cf-template
-[![Build Status](https://travis-ci.org/getcft/aws-encrypted-rds-cf-template.svg?branch=master)](https://travis-ci.org/getcft/aws-encrypted-rds-cf-template)
+[![CloudFormation Validation](https://github.com/getcft/aws-encrypted-rds-cf-template/actions/workflows/cloudformation-validation.yml/badge.svg)](https://github.com/getcft/aws-encrypted-rds-cf-template//actions/workflows/cloudformation-validation.yml)
 
 ## Description:
 
