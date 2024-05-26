@@ -309,7 +309,7 @@ Resources:
         KmsKeyId: !Ref rdsKey
         MasterUsername: 'dbuser'
         MasterUserPassword: !Ref RdsMasterPassword
-        DBInstanceClass: db.t2.small
+        DBInstanceClass: db.t3.micro
         AllocatedStorage: 5
 # To add a specific storage type add "StorageType: gp2, io1, or standard" for io1 you must also declare "Iops: with an integer equal or greater then 1000"
 # gp2 is General Purpose (SSD), io1 is provisioned IOPS, and standard is magnetic
